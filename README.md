@@ -1,7 +1,7 @@
 ---
-title: Semantle Jp With Chat
-emoji: 🐨
-colorFrom: purple
+title: Play Semantle with GPT (Japanese)
+emoji: 🤓💬
+colorFrom: white
 colorTo: pink
 sdk: gradio
 sdk_version: 3.36.1
