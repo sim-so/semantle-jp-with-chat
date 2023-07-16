@@ -5,11 +5,11 @@ evaluate_guess = {"name": "evaluate_guess",
                       "properties": {
                           "word": {
                               "type": "string",
-                              "description": "A word, noun, verb, adverb or adjective. e.g. 空, 近い, 行く, etc."
+                              "description": "A single Japanese word, which is can be a noun, verb, adverb or adjective. e.g. 空, 近い, 行く, etc."
                               },
                           "puzzle": {
                               "type": "object",
-                              "description": "A puzzle data containing scores and ranks of words."
+                              "description": "A class containing information about the puzzle; a secret word and scores/ranks for other words."
                           }
                       },
                       "required": ["word", "puzzle"]

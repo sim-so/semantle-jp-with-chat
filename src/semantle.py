@@ -1,23 +1,19 @@
-import pickle
-from typing import Tuple, List, Dict
+import requests
 
-class Puzzle:
-    secret: str = ""
-    nearests: Dict = dict()
-    nearests_words: List = list()
+def get_secret(puzzle_num: int):
+    request_url = f"https://semantoru.com/yesterday/{puzzle_num+1}"
+    response = requests.get(request_url)
+    if response.status_code == 200:
+        return response.content
+    else:
+        print("Not found error.")
 
-def get_puzzle(puzzle_num: int):
-    puzzle = Puzzle()
-    with open(f'example/{puzzle_num}.dat', 'rb') as f:
-        puzzle.nearests, _ = pickle.load(f)
-    puzzle.nearests_words = [word for word in puzzle.nearests.keys()]
-    puzzle.secret = puzzle.nearests_words[0]
-    return puzzle
-
-def evaluate_guess(word: str, puzzle):
-    rtn = {"guess": word, "sim": None, "rank": None}
-    # check most similar
-    if word in puzzle.nearests:
-        rtn["sim"] = puzzle.nearests[word][1]
-        rtn["rank"] = puzzle.nearests[word][0]
-    return rtn
+def get_guess(word: str, puzzle_num: int):
+    request_url = f"https://semantoru.com/guess/{puzzle_num}/{word}"
+    response = requests.get(request_url)
+    print(response.status_code)
+    if response.status_code == 200:
+        output = response.json()
+        return output["guess"], output["sim"], output["rank"]
+    else:
+        return word, None, None

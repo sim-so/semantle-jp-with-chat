@@ -1,57 +1,50 @@
-import os
 import time
 import json
-import random
+from datetime import date, datetime
+from pytz import utc, timezone
 
 import pandas as pd
 import gradio as gr
 import openai
 
-from src.semantle import get_puzzle, evaluate_guess
+from src.semantle import get_guess, get_secret
 from src.functions import get_functions
+from src.utils import add_guess
 
 GPT_MODEL = "gpt-3.5-turbo"
 TITLE = "やりとりSemantle"
-puzzle_numbers = [88]
-puzzle = get_puzzle(random.choice(puzzle_numbers))
-print(puzzle.secret)
+FIRST_DAY = date(2023, 4, 2)
+puzzle_num = (utc.localize(datetime.utcnow()).astimezone(timezone('Asia/Tokyo')).date() - FIRST_DAY).days
+secret = get_secret(puzzle_num)
 
-guesses = pd.DataFrame.from_dict({"order":[], "guess":[], "sim":[], "rank":[]})
+class play:
+    guessed = set()
+    guesses = pd.DataFrame(columns=["#", "答え", "スコア", "ランク"])
 
-system_content_prefix = """今がら言葉ゲーム始めます。ユーザーが正解を答えるようにチャレンジする間、進行を手伝うのが役割です。
+task_background = f"""今から言葉をします。ユーザがゲームすることを手伝ってください。
 
-まず、"""
-system_content=f"""ユーザーからの話を聞いて、答えるのか、ヒントを欲しがっているのか、やめようといるのかを判断してください。
-ユーザーが答えする場合、答えの点数を評価しておく。その後、{guesses}がら今まで答えた結果の流れを見て、状況を一言で話してください。
-ユーザーがヒントを欲しがっている場合、正解の「{puzzle.secret}」に関する間接的な情報を提供してください。
+"""
+task_description=f"""まず、ユーザーからの話を聞いて、答えるのか、ヒントを欲しがっているのか、やめようといるのかを判断してください。
+ユーザーが答えする場合、答えの点数を評価してください。そのあと結果を一言に要約してください。
+ユーザーがヒントを欲しがっている場合、正解に関する間接的な情報を提供してください。
 ユーザーが正解を聞いたりやめると言いたりする場合、やめてもいいかをもう一度確認してください。
+そのほか話は答えないでください。
 
 ゲームのルール：
-正解は一つの言葉で決めている。ユーザーはどんな言葉が正解か推測して、単語を一つずつ答えする。
-正解を出すと成功としてゲームが終わる。推測した言葉がハズレだったら、推測したのが正解とどのぐらい近いかをヒントとしてもらえる。
-
-ゲームと関係ない話は答えないでください。
+正解は一つの言葉である。ユーザーはどんな言葉が正解か推測して、単語を一つずつ答えする。答えた単語のスコアが100点で、正解と一致すると成功としてゲームが終わる。
 """
-system_message = [{"role": "system", "content": system_content_prefix+system_content}]
-chat_messages = []
+system_content = task_background+task_description
+system_message = [{"role": "system", "content": system_content}]
+chat_history = []
+n_history = 8
 
-def add_guess(guess_result):
-    if guess_result["rank"] == " 正解！":
-        return "正解です。"
-    if guess_result["sim"]:
-        guesses.loc[guesses.shape[0]] = [guesses.shape[0]] + [v for v in guess_result.values()]
-        print(guesses.head())
-        return guesses.to_json()
-    else:
-        return "1,000以内に入っていないようです。"
 
 def create_chat(user_input, chat_history, api_key):
     openai.api_key = api_key
-    user_content = [{"role": "user", "content": user_input}]
-    chat_messages.extend(user_content)
+    chat_messages = [{"role": "user", "content": user_input}]
     response = openai.ChatCompletion.create(
         model=GPT_MODEL,
-        messages=system_message+chat_messages,
+        messages=system_message+chat_history+chat_messages,
         functions=get_functions()
     )
     response_message = response.choices[0].message
@@ -61,16 +54,17 @@ def create_chat(user_input, chat_history, api_key):
         # Step 3: call the function
         # Note: the JSON response may not always be valid; be sure to handle errors
         available_functions = {
-            "evaluate_guess": evaluate_guess,
+            "evaluate_guess": get_guess,
         }
         function_name = response_message["function_call"]["name"]
         function_to_call = available_functions[function_name]
         function_args = json.loads(response_message["function_call"]["arguments"])
         function_response = function_to_call(
             word=function_args.get("word"),
-            puzzle=puzzle
+            puzzle_num=puzzle_num
         )
-        guess_result = add_guess(function_response)
+        guess_result = add_guess(function_response, play)
+        print(guess_result)
         # Step 4: send the info on the function call and function response to GPT
         chat_messages.append(response_message.to_dict()) # extend conversation with assistant's reply
         chat_messages.append(
@@ -80,12 +74,15 @@ def create_chat(user_input, chat_history, api_key):
         )   # extend conversation with function response
         second_response = openai.ChatCompletion.create(
             model=GPT_MODEL,
-            messages=system_message+chat_messages,
+            messages=system_message+chat_history+chat_messages,
         )   # get a new response from GPT where it can se the function response
-        return second_response["choices"][0]["message"].to_dict()
+        chat_messages.append(second_response["choices"][0]["message"].to_dict())
+        chat_history = chat_history[-8:] + chat_messages
+        return chat_messages[-1]
     
     chat_messages.append(response_message.to_dict())
-    return response_message.to_dict()
+    chat_history = chat_history[-8:] + chat_messages
+    return chat_messages[-1]
 
 with gr.Blocks() as demo:
     with gr.Row():
@@ -106,7 +103,7 @@ with gr.Blocks() as demo:
         with gr.Column():
             api_key = gr.Textbox(placeholder="sk-...", label="OPENAI_API_KEY", value=None, type="password")
             guesses_table = gr.DataFrame(
-                value=guesses,
+                value=play.guesses,
                 headers=["#", "答え", "スコア", "ランク"],
                 datatype=["number", "str", "str", "str"],
                 elem_id="guesses-table"
@@ -125,21 +122,20 @@ with gr.Blocks() as demo:
         def greet():
             return "", [("[START]", "ゲームを始まります！好きな言葉をひとつだけいってみてください。")]
         
-        def respond(user_input, chat_history, api_key):
+        def respond(user_input, chatbot, api_key):
             reply = create_chat(user_input, chat_history, api_key)
-            chat_history.append((user_input, reply["content"]))
+            chatbot.append((user_input, reply["content"]))
             time.sleep(2)
-            return "", chat_history
+            return "", chatbot
         def update_guesses():
-            return guesses_table.update(value=guesses)
+            return guesses_table.update(value=play.guesses.sort_values(by="スコア", ascending=False),)
 
         api_key.change(unfreeze, [], [msg]).then(greet, [], [msg, chatbot])
         msg.submit(respond, [msg, chatbot, api_key], [msg, chatbot]).then(update_guesses, [], [guesses_table])
                            
-
     gr.Examples(
         [
-            [puzzle.nearests_words[-1]],
+            ["猫"],
             ["どんなヒントが貰える？"],
             ["正解と「近い」とはどういう意味？"],
             ["何から始めたらいい？"],
