@@ -1,8 +1,8 @@
 ---
 title: Play Semantle with GPT (Japanese)
 emoji: 🤓💬
-colorFrom: white
-colorTo: pink
+colorFrom: pink
+colorTo: purple
 sdk: gradio
 sdk_version: 3.36.1
 app_file: app.py
