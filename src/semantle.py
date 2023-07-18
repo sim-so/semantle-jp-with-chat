@@ -17,3 +17,7 @@ def get_guess(word: str, puzzle_num: int):
         return output["guess"], output["sim"], output["rank"]
     else:
         return word, None, None
+    
+def get_valid_hints():
+    
+    pass

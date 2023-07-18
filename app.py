@@ -13,13 +13,6 @@ from src.utils import add_guess
 
 GPT_MODEL = "gpt-3.5-turbo"
 TITLE = "やりとりSemantle"
-FIRST_DAY = date(2023, 4, 2)
-puzzle_num = (utc.localize(datetime.utcnow()).astimezone(timezone('Asia/Tokyo')).date() - FIRST_DAY).days
-secret = get_secret(puzzle_num)
-
-class play:
-    guessed = set()
-    guesses = pd.DataFrame(columns=["#", "答え", "スコア", "ランク"])
 
 task_background = f"""今から言葉をします。ユーザがゲームすることを手伝ってください。
 
@@ -33,11 +26,18 @@ task_description=f"""まず、ユーザーからの話を聞いて、答える�
 ゲームのルール：
 正解は一つの言葉である。ユーザーはどんな言葉が正解か推測して、単語を一つずつ答えする。答えた単語のスコアが100点で、正解と一致すると成功としてゲームが終わる。
 """
+
+# guessed = set()
+# guesses = pd.DataFrame(columns=["#", "答え", "スコア", "ランク"])
+
 system_content = task_background+task_description
 system_message = [{"role": "system", "content": system_content}]
 chat_history = []
 n_history = 8
 
+def update_guess(guess_result, guessed_words, guesses_df):
+    result, guessed, guesses = add_guess(guess_result, guessed_words, guesses_df)
+    return result
 
 def create_chat(user_input, chat_history, api_key):
     openai.api_key = api_key
@@ -63,7 +63,7 @@ def create_chat(user_input, chat_history, api_key):
             word=function_args.get("word"),
             puzzle_num=puzzle_num
         )
-        guess_result = add_guess(function_response, play)
+        guess_result = update_guess(function_response, guessed, guesses)
         print(guess_result)
         # Step 4: send the info on the function call and function response to GPT
         chat_messages.append(response_message.to_dict()) # extend conversation with assistant's reply
@@ -85,6 +85,11 @@ def create_chat(user_input, chat_history, api_key):
     return chat_messages[-1]
 
 with gr.Blocks() as demo:
+    
+    FIRST_DAY = date(2023, 4, 2)
+    puzzle_num = (utc.localize(datetime.utcnow()).astimezone(timezone('Asia/Tokyo')).date() - FIRST_DAY).days
+    secret = get_secret(puzzle_num)
+
     with gr.Row():
         gr.Markdown(
             """
@@ -102,8 +107,15 @@ with gr.Blocks() as demo:
     with gr.Row():
         with gr.Column():
             api_key = gr.Textbox(placeholder="sk-...", label="OPENAI_API_KEY", value=None, type="password")
+            idx = gr.State(value=1)
+            guessed = gr.State(value=set())
+            guesses = gr.State(value=list())
+            cur_guess_table = gr.DataFrame(
+                value=[],
+                elem_id="cur-guesses-table"
+            )
             guesses_table = gr.DataFrame(
-                value=play.guesses,
+                value=[],
                 headers=["#", "答え", "スコア", "ランク"],
                 datatype=["number", "str", "str", "str"],
                 elem_id="guesses-table"
@@ -127,12 +139,15 @@ with gr.Blocks() as demo:
             chatbot.append((user_input, reply["content"]))
             time.sleep(2)
             return "", chatbot
-        def update_guesses():
-            return guesses_table.update(value=play.guesses.sort_values(by="スコア", ascending=False),)
+        def update_guesses(i, guessed_words, guess_history):
+            i += 1
+            guessed_words.add()
+            return guesses_table.update(value=guess_history)
 
         api_key.change(unfreeze, [], [msg]).then(greet, [], [msg, chatbot])
-        msg.submit(respond, [msg, chatbot, api_key], [msg, chatbot]).then(update_guesses, [], [guesses_table])
-                           
+        msg.submit(respond, [msg, chatbot, api_key], [msg, chatbot]
+                   ).then(update_guesses, [idx, guessed, guesses], [idx, guessed, guesses, cur_guess_table])
+            
     gr.Examples(
         [
             ["猫"],
