@@ -105,13 +105,11 @@ with gr.Blocks() as demo:
         def greet():
             return "", [("[START]", "ゲームを始まります！好きな言葉をひとつだけいってみてください。")]
         
-        def respond(key, user_input, chat_history, cur):
+        def respond(key, user_input):
             reply = create_chat(key, user_input)
-            if isinstance(reply["content"], list):
-                cur = reply["content"]
             chatbot.append((user_input, reply["content"]))
             time.sleep(2)
-            return "", chatbot, cur
+            return "", chatbot
         
         def update_guesses(cur, i, guessed_words, guesses_df):
             if cur[0] not in guessed_words:
