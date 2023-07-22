@@ -1,7 +1,5 @@
 import time
 import json
-from datetime import date, datetime
-from pytz import utc, timezone
 
 import pandas as pd
 import gradio as gr
@@ -64,16 +62,12 @@ def create_chat(user_input, chat_history, api_key):
     return chat_messages[-1]
 
 with gr.Blocks() as demo:
-    
-    FIRST_DAY = date(2023, 4, 2)
-    puzzle_num = (utc.localize(datetime.utcnow()).astimezone(timezone('Asia/Tokyo')).date() - FIRST_DAY).days
-    secret = get_secret(puzzle_num)
 
     with gr.Row():
         gr.Markdown(
             """
             # やりとりSemantle
-            [semantle日本語版](https://semantoru.com/)をchatbotと楽しめるためのspaceです。
+            [semantle日本語版](https://semantoru.com/)をchatbotと楽しめるspaceです。
             ## ゲームのやり方
             - 正解は一つの単語で、これを答えるとゲームの勝利になります。
             - 推測した単語が正解じゃない場合、類似度スコアと順位が表示されます。それは正解を推測する大事なヒントになります。
