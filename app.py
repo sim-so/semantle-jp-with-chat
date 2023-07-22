@@ -14,37 +14,15 @@ from src.utils import add_guess
 GPT_MODEL = "gpt-3.5-turbo"
 TITLE = "やりとりSemantle"
 
-task_background = f"""今から言葉をします。ユーザがゲームすることを手伝ってください。
-
-"""
-task_description=f"""まず、ユーザーからの話を聞いて、答えるのか、ヒントを欲しがっているのか、やめようといるのかを判断してください。
-ユーザーが答えする場合、答えの点数を評価してください。そのあと結果を一言に要約してください。
-ユーザーがヒントを欲しがっている場合、正解に関する間接的な情報を提供してください。
-ユーザーが正解を聞いたりやめると言いたりする場合、やめてもいいかをもう一度確認してください。
-そのほか話は答えないでください。
-
-ゲームのルール：
-正解は一つの言葉である。ユーザーはどんな言葉が正解か推測して、単語を一つずつ答えする。答えた単語のスコアが100点で、正解と一致すると成功としてゲームが終わる。
-"""
-
-# guessed = set()
-# guesses = pd.DataFrame(columns=["#", "答え", "スコア", "ランク"])
-
 system_content = task_background+task_description
 system_message = [{"role": "system", "content": system_content}]
-chat_history = []
-n_history = 8
-
-def update_guess(guess_result, guessed_words, guesses_df):
-    result, guessed, guesses = add_guess(guess_result, guessed_words, guesses_df)
-    return result
 
 def create_chat(user_input, chat_history, api_key):
     openai.api_key = api_key
     chat_messages = [{"role": "user", "content": user_input}]
     response = openai.ChatCompletion.create(
         model=GPT_MODEL,
-        messages=system_message+chat_history+chat_messages,
+        messages=system_message+chat_messages,
         functions=get_functions()
     )
     response_message = response.choices[0].message
@@ -54,7 +32,8 @@ def create_chat(user_input, chat_history, api_key):
         # Step 3: call the function
         # Note: the JSON response may not always be valid; be sure to handle errors
         available_functions = {
-            "evaluate_guess": get_guess,
+            "evaluate_score": get_guess,
+            "get_data_for_hint": get_play_data,
         }
         function_name = response_message["function_call"]["name"]
         function_to_call = available_functions[function_name]
@@ -107,18 +86,16 @@ with gr.Blocks() as demo:
     with gr.Row():
         with gr.Column():
             api_key = gr.Textbox(placeholder="sk-...", label="OPENAI_API_KEY", value=None, type="password")
-            idx = gr.State(value=1)
+            idx = gr.State(value=0)
             guessed = gr.State(value=set())
             guesses = gr.State(value=list())
-            cur_guess_table = gr.DataFrame(
-                value=[],
-                elem_id="cur-guesses-table"
-            )
+            cur_guess = gr.State()
             guesses_table = gr.DataFrame(
-                value=[],
-                headers=["#", "答え", "スコア", "ランク"],
-                datatype=["number", "str", "str", "str"],
-                elem_id="guesses-table"
+                value=pd.DataFrame(columns=["#", "答え", "スコア", "ランク"]),
+                headers=["#", "答え", "score", "score"],
+                datatype=["number", "str", "number", "str"],
+                elem_id="guesses-table",
+                interactive=False
             )
         with gr.Column(elem_id="chat_container"):
             msg = gr.Textbox(
@@ -134,19 +111,26 @@ with gr.Blocks() as demo:
         def greet():
             return "", [("[START]", "ゲームを始まります！好きな言葉をひとつだけいってみてください。")]
         
-        def respond(user_input, chatbot, api_key):
-            reply = create_chat(user_input, chat_history, api_key)
+        def respond(key, user_input, chat_history, cur):
+            reply = create_chat(key, user_input)
+            if isinstance(reply["content"], list):
+                cur = reply["content"]
             chatbot.append((user_input, reply["content"]))
             time.sleep(2)
-            return "", chatbot
-        def update_guesses(i, guessed_words, guess_history):
-            i += 1
-            guessed_words.add()
-            return guesses_table.update(value=guess_history)
+            return "", chatbot, cur
+        
+        def update_guesses(cur, i, guessed_words, guesses_df):
+            if cur[0] not in guessed_words:
+                guessed_words.add(cur[0])
+                guesses_df.loc[i] = [i+1] + cur
+                i += 1
+                guesses_df = guesses_df.sort_values(by=["score"], ascending=False)
+            return i, guessed_words, guesses_df
 
         api_key.change(unfreeze, [], [msg]).then(greet, [], [msg, chatbot])
-        msg.submit(respond, [msg, chatbot, api_key], [msg, chatbot]
-                   ).then(update_guesses, [idx, guessed, guesses], [idx, guessed, guesses, cur_guess_table])
+        msg.submit(respond, [api_key, msg, chatbot, cur_guess], [msg, chatbot, cur_guess]).then(
+            update_guesses, [cur_guess, idx, guessed, guesses_table], [idx, guessed, guesses_table]
+        )
             
     gr.Examples(
         [
