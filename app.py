@@ -5,7 +5,7 @@ import pandas as pd
 import gradio as gr
 import openai
 
-from src.semantle import get_guess, get_secret
+from src.semantle import get_guess, get_secret, get_puzzle_num
 from src.functions import get_functions
 from src.utils import add_guess
 
@@ -15,7 +15,37 @@ TITLE = "やりとりSemantle"
 system_content = task_background+task_description
 system_message = [{"role": "system", "content": system_content}]
 
-def create_chat(user_input, chat_history, api_key):
+def _execute_function(function_call, chat_messages):
+        # Step 3: call the function
+        # Note: the JSON response may not always be valid; be sure to handle errors
+        available_functions = {
+            "guess_word": get_guess,
+            "lookup_answer": get_secret,
+            "retrive_puzzle": get_puzzle_num
+        }
+        function_name = function_call["name"]
+        function_to_call = available_functions[function_name]
+        function_args = json.loads(function_call["arguments"])
+        function_response = function_to_call(
+            **function_args
+        )
+        if function_call["name"] == "guess_word":
+            print("update guess")
+        # Step 4: send the info on the function call and function response to GPT
+        chat_messages.append(response_message.to_dict()) # extend conversation with assistant's reply
+        chat_messages.append(
+            {"role": "function",
+             "name": function_name,
+             "content": function_response["choices"][0]}
+        )   # extend conversation with function response
+        second_response = openai.ChatCompletion.create(
+            model=GPT_MODEL,
+            messages=chat_messages,
+        )   # get a new response from GPT where it can se the function response
+        chat_messages.append(second_response["choices"][0]["message"].to_dict())
+        return chat_messages
+
+def create_chat(api_key, user_input):
     openai.api_key = api_key
     chat_messages = [{"role": "user", "content": user_input}]
     response = openai.ChatCompletion.create(
@@ -30,8 +60,9 @@ def create_chat(user_input, chat_history, api_key):
         # Step 3: call the function
         # Note: the JSON response may not always be valid; be sure to handle errors
         available_functions = {
-            "evaluate_score": get_guess,
-            "get_data_for_hint": get_play_data,
+            "guess_word": get_guess,
+            "lookup_answer": get_secret,
+            "retrive_puzzle": get_puzzle_num
         }
         function_name = response_message["function_call"]["name"]
         function_to_call = available_functions[function_name]
@@ -54,11 +85,11 @@ def create_chat(user_input, chat_history, api_key):
             messages=system_message+chat_history+chat_messages,
         )   # get a new response from GPT where it can se the function response
         chat_messages.append(second_response["choices"][0]["message"].to_dict())
-        chat_history = chat_history[-8:] + chat_messages
+        chat_history = chat_history + chat_messages
         return chat_messages[-1]
     
     chat_messages.append(response_message.to_dict())
-    chat_history = chat_history[-8:] + chat_messages
+    chat_history = chat_history + chat_messages
     return chat_messages[-1]
 
 with gr.Blocks() as demo:
@@ -105,11 +136,11 @@ with gr.Blocks() as demo:
         def greet():
             return "", [("[START]", "ゲームを始まります！好きな言葉をひとつだけいってみてください。")]
         
-        def respond(key, user_input):
+        def respond(key, user_input, chat_messages):
             reply = create_chat(key, user_input)
-            chatbot.append((user_input, reply["content"]))
+            chat_messages.append((user_input, reply["content"]))
             time.sleep(2)
-            return "", chatbot
+            return "", chat_messages
         
         def update_guesses(cur, i, guessed_words, guesses_df):
             if cur[0] not in guessed_words:

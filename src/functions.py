@@ -15,20 +15,7 @@ guess_word = {"name": "guess_word",
                       "required": ["word", "puzzle_num"]
                   }}
 
-prepare_hint = {"name": "prepare_hint",
-                "description": "Use this function to retrieve information for hint.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "puzzle_num": {
-                            "type": "interger",
-                            "description": "An index for today's puzzle set."
-                        }
-                    },
-                    "required": ["puzzle_num"]
-                }}
-
-get_secret = {"name": "get_secret",
+lookup_answer = {"name": "lookup_answer",
                 "description": "You can check what the correct answer of today's puzzle is by this function.",
                 "parameters": {
                     "type": "object",
@@ -41,8 +28,8 @@ get_secret = {"name": "get_secret",
                     "required": ["puzzle_num"]
                 }}
 
-get_puzzle_num = {"name": "get_puzzle_num",
-                  "description": "Use this function to check today's puzzle number.",
+retrieve_puzzle_num = {"name": "retrieve_puzzle_num",
+                  "description": "Use this function to retrieve today's puzzle number.",
                   "parameters": {
                       "type": "object",
                       "properties": {}
@@ -68,5 +55,5 @@ update_history = {"name": "update_history",
 
 
 def get_functions():
-    functions = [guess_word]
+    functions = [guess_word, lookup_answer]
     return functions
