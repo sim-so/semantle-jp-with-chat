@@ -10,10 +10,10 @@ from src.functions import get_functions
 from src.utils import add_guess
 
 GPT_MODEL = "gpt-3.5-turbo"
-TITLE = "やりとりSemantle"
+TITLE = "やりとりイミトル"
 
-system_content = task_background+task_description
-system_message = [{"role": "system", "content": system_content}]
+with open("data/rule.md", "r", encoding="utf-8") as f:
+    RULEBOOK = "\n".join(f.readlines())
 
 def _execute_function(function_call, chat_messages):
         # Step 3: call the function
@@ -46,10 +46,12 @@ def _execute_function(function_call, chat_messages):
 
 def create_chat(key, user_input):
     openai.api_key = key
-    chat_messages = [{"role": "user", "content": user_input}]
+    chat_messages = [
+        {"role": "system", "content": "あなたはiritoruというゲームの進行役です。ユーザーが答えを言ったり、ゲームに関するリクエストをしたら、短くても丁寧に答えてください。"},
+        {"role": "user", "content": user_input}]
     response = openai.ChatCompletion.create(
         model=GPT_MODEL,
-        messages=system_message+chat_messages,
+        messages=chat_messages,
         functions=get_functions()
     )
     response_message = response.choices[0].message.to_dict()
@@ -64,7 +66,6 @@ def create_chat(key, user_input):
     return chat_messages[-1]
 
 with gr.Blocks() as demo:
-
     with gr.Row():
         gr.Markdown(
             """

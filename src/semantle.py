@@ -4,7 +4,7 @@ import requests
 
 def get_secret(puzzle_num: int):
     request_url = f"https://semantoru.com/yesterday/{puzzle_num+1}"
-    response = requests.get(request_url)
+    response = requests.get(request_url, timeout=5)
     if response.status_code == 200:
         return response.content
     else:
@@ -12,7 +12,7 @@ def get_secret(puzzle_num: int):
 
 def get_guess(word: str, puzzle_num: int):
     request_url = f"https://semantoru.com/guess/{puzzle_num}/{word}"
-    response = requests.get(request_url)
+    response = requests.get(request_url, timeout=5)
     print(response.status_code)
     if response.status_code == 200:
         return response.json()
@@ -22,5 +22,5 @@ def get_guess(word: str, puzzle_num: int):
                 "rank": None}
     
 def get_puzzle_num():
-    FIRST_DAY = date(2023, 4, 2)
-    return (utc.localize(datetime.utcnow()).astimezone(timezone('Asia/Tokyo')).date() - FIRST_DAY).days
+    fisrt_day = date(2023, 4, 2)
+    return (utc.localize(datetime.utcnow()).astimezone(timezone('Asia/Tokyo')).date() - fisrt_day).days

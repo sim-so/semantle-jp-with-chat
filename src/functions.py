@@ -47,13 +47,19 @@ update_history = {"name": "update_history",
                           },
                           "guess_history": {
                               "type": "object",
-                              "description": "A dataframe containing the guessed words and its xore and rank in a row."
+                              "description": "A dataframe containing the guessed words and its score and rank in a row."
                           }
                       },
                       "required": ["current_guess", "guess_history"]
                   }}
+retrieve_rule = {"name": "retrieve_rule",
+                 "description": "Use this function to retrieve the game rule for clarification of your response.",
+                 "parametrs": {
+                     "type": "object",
+                     "properties": {},
+                 }}
 
 
 def get_functions():
-    functions = [guess_word, lookup_answer]
+    functions = [guess_word, lookup_answer, retrieve_puzzle_num, update_history, retrieve_rule]
     return functions
