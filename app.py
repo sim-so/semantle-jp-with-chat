@@ -32,64 +32,35 @@ def _execute_function(function_call, chat_messages):
         if function_call["name"] == "guess_word":
             print("update guess")
         # Step 4: send the info on the function call and function response to GPT
-        chat_messages.append(response_message.to_dict()) # extend conversation with assistant's reply
         chat_messages.append(
             {"role": "function",
              "name": function_name,
              "content": function_response["choices"][0]}
         )   # extend conversation with function response
-        second_response = openai.ChatCompletion.create(
+        next_response = openai.ChatCompletion.create(
             model=GPT_MODEL,
             messages=chat_messages,
         )   # get a new response from GPT where it can se the function response
-        chat_messages.append(second_response["choices"][0]["message"].to_dict())
-        return chat_messages
+        chat_messages.append(next_response.choices[0].message.to_dict())
+        return next_response, chat_messages
 
-def create_chat(api_key, user_input):
-    openai.api_key = api_key
+def create_chat(key, user_input):
+    openai.api_key = key
     chat_messages = [{"role": "user", "content": user_input}]
     response = openai.ChatCompletion.create(
         model=GPT_MODEL,
         messages=system_message+chat_messages,
         functions=get_functions()
     )
-    response_message = response.choices[0].message
+    response_message = response.choices[0].message.to_dict()
+    chat_messages.append(response_message) # extend conversation with assistant's reply
 
     # Step 2: check if CPT wanted to call a function
-    if response_message.get("function_call"):
+    while response_message.get("function_call"):
         # Step 3: call the function
         # Note: the JSON response may not always be valid; be sure to handle errors
-        available_functions = {
-            "guess_word": get_guess,
-            "lookup_answer": get_secret,
-            "retrive_puzzle": get_puzzle_num
-        }
-        function_name = response_message["function_call"]["name"]
-        function_to_call = available_functions[function_name]
-        function_args = json.loads(response_message["function_call"]["arguments"])
-        function_response = function_to_call(
-            word=function_args.get("word"),
-            puzzle_num=puzzle_num
-        )
-        guess_result = update_guess(function_response, guessed, guesses)
-        print(guess_result)
-        # Step 4: send the info on the function call and function response to GPT
-        chat_messages.append(response_message.to_dict()) # extend conversation with assistant's reply
-        chat_messages.append(
-            {"role": "function",
-             "name": function_name,
-             "content": guess_result}
-        )   # extend conversation with function response
-        second_response = openai.ChatCompletion.create(
-            model=GPT_MODEL,
-            messages=system_message+chat_history+chat_messages,
-        )   # get a new response from GPT where it can se the function response
-        chat_messages.append(second_response["choices"][0]["message"].to_dict())
-        chat_history = chat_history + chat_messages
-        return chat_messages[-1]
+        response_message, chat_messages = _execute_function(response_message["function_call"], chat_messages)
     
-    chat_messages.append(response_message.to_dict())
-    chat_history = chat_history + chat_messages
     return chat_messages[-1]
 
 with gr.Blocks() as demo:
