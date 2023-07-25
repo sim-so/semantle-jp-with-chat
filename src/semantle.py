@@ -2,7 +2,8 @@ from datetime import date, datetime
 from pytz import utc, timezone
 import requests
 
-def get_secret(puzzle_num: int):
+def get_secret():
+    puzzle_num = get_puzzle_num()
     request_url = f"https://semantoru.com/yesterday/{puzzle_num+1}"
     response = requests.get(request_url, timeout=5)
     if response.status_code == 200:
@@ -10,12 +11,20 @@ def get_secret(puzzle_num: int):
     else:
         return "Not found error."
 
-def get_guess(word: str, puzzle_num: int):
+def get_guess(word: str):
+    puzzle_num = get_puzzle_num()
     request_url = f"https://semantoru.com/guess/{puzzle_num}/{word}"
+    print(request_url)
     response = requests.get(request_url, timeout=5)
     print(response.status_code)
     if response.status_code == 200:
-        return response.json()
+        rtn = response.json()
+        print(rtn)
+        if rtn['rank'] == '正解!':
+            return rtn
+        elif rtn['rank'] > 1000:
+            rtn['rank'] = '?'
+            return rtn
     else:
         return {"guess": word, 
                 "sim": None,

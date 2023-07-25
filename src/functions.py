@@ -7,25 +7,25 @@ guess_word = {"name": "guess_word",
                               "type": "string",
                               "description": "A single Japanese word to guess, which is can be a noun, verb, adverb or adjective. e.g. 空, 近い, 行く, etc."
                               },
-                          "puzzle_num": {
-                              "type": "integer",
-                              "description": "An index indicating today's puzzle."
-                          }
+                        #   "puzzle_num": {
+                        #       "type": "integer",
+                        #       "description": "An index indicating today's puzzle."
+                        #   }
                       },
-                      "required": ["word", "puzzle_num"]
+                      "required": ["word"]
                   }}
 
 lookup_answer = {"name": "lookup_answer",
-                "description": "You can check what the correct answer of today's puzzle is by this function.",
+                "description": "Use this function to check the correct answer of today's puzzle.",
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "puzzle_num": {
-                            "type": "integer",
-                            "description": "An index indicating today's puzzle."
+                        # "puzzle_num": {
+                        #     "type": "integer",
+                        #     "description": "An index indicating today's puzzle."
                         }
-                    },
-                    "required": ["puzzle_num"]
+                    # },
+                    # "required": ["puzzle_num"]
                 }}
 
 retrieve_puzzle_num = {"name": "retrieve_puzzle_num",
@@ -52,14 +52,18 @@ update_history = {"name": "update_history",
                       },
                       "required": ["current_guess", "guess_history"]
                   }}
-retrieve_rule = {"name": "retrieve_rule",
-                 "description": "Use this function to retrieve the game rule for clarification of your response.",
-                 "parametrs": {
+read_rule = {"name": "read_rule",
+                 "description": "Use this function to read the game rule for clarification of your response.",
+                 "parameters": {
                      "type": "object",
                      "properties": {},
                  }}
 
 
 def get_functions():
-    functions = [guess_word, lookup_answer, retrieve_puzzle_num, update_history, retrieve_rule]
+    functions = [guess_word, 
+                 lookup_answer, 
+                #  retrieve_puzzle_num, 
+                #  update_history, 
+                 read_rule]
     return functions
