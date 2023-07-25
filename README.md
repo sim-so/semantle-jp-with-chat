@@ -1,6 +1,5 @@
 # やりとりxイミトル
 > このリポジトリは[イミトル(semantleの日本語版)](https://github.com/sim-so/semantle-jp)をassistantと楽しめるものです。
-> このリポジトリはJohannes Gätjenさんの[Semantlich](http://semantlich.johannesgaetjen.de/)をフォークしたものです。
 
 ## 遊び方 How to play
 
